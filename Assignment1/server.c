@@ -19,10 +19,9 @@ pthread_t client_threads[100];
 
 void sig_handler(int sig){
     if(sig==SIGINT){
-        printf("\nServer stopping execution\n");
+        printf("\nServer stopped execution\n");
         int i;
         for(i=0;i<100;i++){
-            //pthread_kill(client_threads[i],SIGKILL);
             close(clientsds[i]);
         }
         close(sd);
@@ -42,14 +41,14 @@ void sig_handler(int sig){
 
 
 int read_line(int sfd,char* myLine){
-    char buff;
-    int temp_a=read(sfd,&buff,1);
+    char BU;
+    int temp_a=read(sfd,&BU,1);
     if(temp_a<=0)return 1;
-    if(buff=='\0'){
+    if(BU=='\0'){
         *myLine='\0';
     }
     else{
-        *myLine=buff;
+        *myLine=BU;
         myLine++;
         return read_line(sfd,myLine);
     }
@@ -67,71 +66,27 @@ void* start_client_exec(void* dump){
     
     write(other_clients[my_id-1],"-m Hello\0",strlen("-m Hello\0")+1);
     
-    char buff[1000];
+    char BU[1000];
     
     while(1){
         
-        int temp_a = read_line(other_clients[my_id-1],buff);
+        int temp_a = read_line(other_clients[my_id-1],BU);
         if(temp_a==1){
             other_clients[my_id-1]=0;
-            printf("%s left the server.\n",names[my_id-1]);
+            printf("%s left server.\n",names[my_id-1]);
             names[my_id-1][0]=0;
             
             return NULL;
         }
-        if(buff[0]=='l'){
+        if(BU[0]=='#'){
             
             write(other_clients[my_id-1],names[my_id-1],strlen(names[my_id-1]));
             write(other_clients[my_id-1],": ",2);
-            write(other_clients[my_id-1],buff,strlen(buff)+1);
+            write(other_clients[my_id-1],BU,strlen(BU)+1);
             
-            if(buff[1]=='s'){
-                if(buff[2]=='r'){
-                    printf("%s stopped chatting with %s\n",names[my_id-1],names[receiver_id-1]);
-                    receiver_id=0;
-                    group_id=0;
-                    continue;
-                }
-                if(buff[3]==':'){
-                    write(other_clients[my_id-1],"-m Please use -g to select group\0",strlen("-m Please use -g to select group\0")+1);
-                }
-                
-                bool is_it_there=false;
-                int i;
-                for(i=0;i<100 && names[i]!=NULL;i++){
-                    if(strcmp(buff+3,names[i])==0){
-                        is_it_there=true;
-                        break;
-                    }
-                }
-                if(is_it_there){
-                    if(my_id==i+1){
-                        write(other_clients[my_id-1],"-m Sorry for your lonliness.\0",strlen("-m Sorry for your lonliness.\0")+1);
-                    }
-                    else{
-                        receiver_id=i+1;
-                        printf("%s is talking to %s.\n",names[my_id-1],names[receiver_id-1]);
-                    }
-                }
-                else{
-                    write(other_clients[my_id-1],"-m No such person found.",strlen("-m No such person found."));
-                    if(receiver_id!=0){
-                        write(other_clients[my_id-1]," Still connected to ",strlen(" Still connected to "));
-                        write(other_clients[my_id-1],names[receiver_id-1],strlen(names[receiver_id-1]));
-                    }
-                    write(other_clients[my_id-1],"\0",1);
-                }
-            }
-	    else if(buff[1]=='q'){
-                close(other_clients[my_id-1]);
-                other_clients[my_id-1]=0;
-                printf("%s left the server.\n",names[my_id-1]);
-                names[my_id-1][0]=0;
-                
-                return NULL;
-            }
-            else if(buff[1]=='l'){
-                write(other_clients[my_id-1],"-m Here is the list:",strlen("-m Here is the list:"));
+            
+            if(BU[1]=='l'){
+                write(other_clients[my_id-1],"-m List:",strlen("-m List:"));
                 int i;
                 for(i=0; i<100 && names[i]!=NULL;i++){
                     if(names[i][0]!='\0'){
@@ -142,28 +97,28 @@ void* start_client_exec(void* dump){
                 write(other_clients[my_id-1],"\0",1);
             }
             
-            else if(buff[1]=='g'){
-                if(buff[2]=='n'){
-                    bool is_it_there=false;
+            else if(BU[1]=='g'){
+                if(BU[2]=='n'){
+                    bool if_present=false;
                     int i,j=0;
                     for(i=0;i<100 && names[i]!=NULL;i++){
                         if(names[i][0]==':'){
                             j++;
-                            if(strcmp(buff+4,names[i]+1)==0){
-                                is_it_there=true;
+                            if(strcmp(BU+4,names[i]+1)==0){
+                                if_present=true;
                                 break;
                             }
                             
                         }
                     }
-                    if(is_it_there){
-                        write(other_clients[my_id-1],"-m Please try with a different name.\0",strlen("-m Please try with a different name.\0")+1);
+                    if(if_present){
+                        write(other_clients[my_id-1],"-m Try with different name.\0",strlen("-m Please try with different name.\0")+1);
                     }
                     else{
-                        printf("New Group created: %s\n",buff+4);
+                        printf("New Group created: %s\n",BU+4);
                         names[i]=malloc(50*sizeof(char));
                         names[i][0]=':';
-                        strcpy(names[i]+1,buff+4);
+                        strcpy(names[i]+1,BU+4);
                         receiver_id=i+1;
                         group_id=j+1;
                         
@@ -180,37 +135,35 @@ void* start_client_exec(void* dump){
                     }
                     
                 }
-                else if(buff[2]=='a'){
+                else if(BU[2]=='a'){
                     if(receiver_id==0 || names[receiver_id-1][0]!= ':'){
-                        write(other_clients[my_id-1],"-m Please select a group first.\0",strlen("-m Please select a group first.\0")+1);
+                        write(other_clients[my_id-1],"-m Please select a group\0",strlen("-m Please select a group\0")+1);
                     }
                     else{
-                        bool is_it_there=false;
+                        bool if_present=false;
                         int i;
                         for(i=0;i<100 && names[i]!=NULL;i++){
-                            if(strcmp(buff+4,names[i])==0){
-                                is_it_there=true;
+                            if(strcmp(BU+4,names[i])==0){
+                                if_present=true;
                                 break;
                             }
                         }
-                        if(!is_it_there){
-                            write(other_clients[my_id-1],"-m No such user available. Use -l for list of users.\0",strlen("-m No such user available. Use -l for list of users.\0")+1);
+                        if(!if_present){
+                            write(other_clients[my_id-1],"-m No such user available. Use ll for list of users.\0",strlen("-m No such user available. Use ll for list of users.\0")+1);
                         }
                         else{
                             bool is_it_group=false;
                             int j;
                             for(j=1;j<=group_members[group_id-1][0];j++){
                                 if(group_members[group_id-1][j]==0)continue;
-                                if(strcmp(buff+4,names[group_members[group_id-1][j]-1])==0){
+                                if(strcmp(BU+4,names[group_members[group_id-1][j]-1])==0){
                                     is_it_group=true;
                                     break;
                                 }
                                 
                             }
-                            
-                            
                             if(is_it_group){
-                                write(other_clients[my_id-1],"-m That person already present in the group\0",strlen("-m That person already present in the group\0")+1);
+                                write(other_clients[my_id-1],"-m That person already present in group\0",strlen("-m That person already present in group\0")+1);
                             }
                             else{
                                 group_members[group_id-1][0]+=1;
@@ -227,120 +180,21 @@ void* start_client_exec(void* dump){
                         
                     }
                     
-                }
-                else if(buff[2]=='r'){
-                    if(receiver_id==0 || names[receiver_id-1][0]!= ':'){
-                        write(other_clients[my_id-1],"-m Please select a group first.\0",strlen("-m Please select a group first.\0")+1);
-                        continue;
-                    }
-                    int i;
-                    for(i=1; i <= group_members[group_id-1][0] ; i++){
-                        if(group_members[group_id-1][i]==0)continue;
-                        if(strcmp(names[my_id-1],names[group_members[group_id-1][i]-1])==0){
-                            group_members[group_id-1][i]=0;
-                            break;
-                        }
-                    }
-                    
-                    
-                    int j;
-                    for(j=1;j<=group_members[group_id-1][0];j++){
-                        
-                        if(group_members[group_id-1][j]==0)continue;
-                        if(other_clients[group_members[group_id-1][i]-1]==0)continue;
-                        if(names[group_members[group_id-1][j]-1][0]==':')continue;
-                        
-                        write(other_clients[group_members[group_id-1][j]-1],"-m ",strlen("-m "));
-                        write(other_clients[group_members[group_id-1][j]-1],names[my_id-1],strlen(names[my_id-1]));
-                        write(other_clients[group_members[group_id-1][j]-1]," left the group ",strlen(" left the group "));
-                        write(other_clients[group_members[group_id-1][j]-1],names[receiver_id-1]+1,strlen(names[receiver_id-1]+1));
-                        write(other_clients[group_members[group_id-1][j]-1],".\0",strlen(".\0")+1);
-                    }
-                    write(other_clients[my_id-1],"-m You left the group ",strlen("-m You left the group "));
-                    write(other_clients[my_id-1],names[receiver_id-1]+1,strlen(names[receiver_id-1]+1));
-                    write(other_clients[my_id-1],".\0",strlen(".\0")+1);
-                    
-                    printf("%s left the group %s\n",names[my_id-1],names[receiver_id-1]);
-                    
-                    group_id=0;
-                    receiver_id=0;
-                 }   
-                else if(buff[2]=='l'){
-                    if(receiver_id==0 || names[receiver_id-1][0]!= ':'){
-                        write(other_clients[my_id-1],"-m Please select a group first.\0",strlen("-m Please select a group first.\0")+1);
-                        continue;
-                    }
-                    write(other_clients[my_id-1],"-m Here are the members in the group:",strlen("-m Here are the members in the group:"));
-                    int i;
-                    for(i=1; i <= group_members[group_id-1][0] ; i++){
-                        if(group_members[group_id-1][i]==0)continue;
-                        if(names[group_members[group_id-1][i]-1][0]!='\0'){
-                            write(other_clients[my_id-1],"\n",1);
-                            write(other_clients[my_id-1],names[group_members[group_id-1][i]-1],strlen(names[group_members[group_id-1][i]-1]));
-                            
-                        }
-                    }
-                    write(other_clients[my_id-1],"\0",1);
-                }
-                else if(buff[2]=='c'){
-                    if(receiver_id==0 || names[receiver_id-1][0]!= ':'){
-                        write(other_clients[my_id-1],"-m Please select a group first.\0",strlen("-m Please select a group first.\0")+1);
-                        continue;
-                    }
-                    bool is_it_there=false;
-                    int i;
-                    for(i=0; i <100 && names[i]!=NULL; i++){
-                        if(names[i][0]==':'){
-                            if(strcmp(buff+4,names[i]+1)==0){
-                                is_it_there=true;
-                                break;
-                            }
-                        }
-                    }
-                    if(is_it_there){
-                        if(receiver_id-1==i){
-                            write(other_clients[my_id-1],"-m Already Same Name.\0",strlen("-m Already same Name.\0")+1);
-                        }
-                        else{
-                            write(other_clients[my_id-1],"-m Try different name.\0",strlen("-m Try different name.\0")+1);
-                        }
-                    }
-                    else{
-                        printf("%s changed the group %s to %s\n",names[my_id-1],names[receiver_id-1]+1,buff+4);
-                        
-                        int j;
-                        for(j=1;j<=group_members[group_id-1][0];j++){
-                            
-                            if(group_members[group_id-1][j]==0)continue;
-                            if(names[group_members[group_id-1][j]-1][0]==':')continue;
-                            
-                            write(other_clients[group_members[group_id-1][j]-1],"-m ",strlen("-m "));
-                            write(other_clients[group_members[group_id-1][j]-1],names[my_id-1],strlen(names[my_id-1]));
-                            write(other_clients[group_members[group_id-1][j]-1]," changed the group ",strlen(" changed the group "));
-                            write(other_clients[group_members[group_id-1][j]-1],names[receiver_id-1]+1,strlen(names[receiver_id-1]+1));
-                            write(other_clients[group_members[group_id-1][j]-1]," to ",strlen(" to "));
-                            write(other_clients[group_members[group_id-1][j]-1],buff+4,strlen(buff+4));
-                            write(other_clients[group_members[group_id-1][j]-1],".\0",strlen(".\0")+1);
-                        }
-                        
-                        strcpy(names[receiver_id-1]+1,buff+4);
-                    }
-                }
-                
+                } 
                 else{
-                    bool is_it_there=false;
+                    bool if_present=false;
                     int i,j=0;
                     for(i=0;i<100 && names[i]!=NULL;i++){
                         if(names[i][0]==':'){
                             j++;
-                            if(strcmp(buff+3,names[i]+1)==0){
-                                is_it_there=true;
+                            if(strcmp(BU+3,names[i]+1)==0){
+                                if_present=true;
                                 break;
                             }
                         }
                     }
                     
-                    if(!is_it_there){
+                    if(!if_present){
                         write(other_clients[my_id-1],"-m No such group is Present.\0",strlen("-m No such group is Present.\0")+1);
                     }
                     else{
@@ -373,14 +227,14 @@ void* start_client_exec(void* dump){
             if(receiver_id==0){
                 write(other_clients[my_id-1],names[my_id-1],strlen(names[my_id-1]));
                 write(other_clients[my_id-1],": ",2);
-                write(other_clients[my_id-1],buff,strlen(buff)+1);
+                write(other_clients[my_id-1],BU,strlen(BU)+1);
                 
                 write(other_clients[my_id-1],"-m Select receiver first\0",strlen("-m Select receiver first\0")+1);
             }
             else if(other_clients[receiver_id-1]==0){
                 write(other_clients[my_id-1],names[my_id-1],strlen(names[my_id-1]));
                 write(other_clients[my_id-1],": ",2);
-                write(other_clients[my_id-1],buff,strlen(buff)+1);
+                write(other_clients[my_id-1],BU,strlen(BU)+1);
                 
                 write(other_clients[my_id-1],"-m Receiver left the server.\0",strlen("-m Receiver left the server.\0")+1);
             }
@@ -396,7 +250,7 @@ void* start_client_exec(void* dump){
                     write(other_clients[group_members[group_id-1][i]-1],": ",2);
                     write(other_clients[group_members[group_id-1][i]-1],names[my_id-1],strlen(names[my_id-1]));
                     write(other_clients[group_members[group_id-1][i]-1],": ",2);
-                    write(other_clients[group_members[group_id-1][i]-1],buff,strlen(buff)+1);
+                    write(other_clients[group_members[group_id-1][i]-1],BU,strlen(BU)+1);
                 }
                 
             }
@@ -404,11 +258,11 @@ void* start_client_exec(void* dump){
                 
                 write(other_clients[my_id-1],names[my_id-1],strlen(names[my_id-1]));
                 write(other_clients[my_id-1],": ",2);
-                write(other_clients[my_id-1],buff,strlen(buff)+1);
+                write(other_clients[my_id-1],BU,strlen(BU)+1);
                 
                 write(other_clients[receiver_id-1],names[my_id-1],strlen(names[my_id-1]));
                 write(other_clients[receiver_id-1],": ",2);
-                write(other_clients[receiver_id-1],buff,strlen(buff)+1);
+                write(other_clients[receiver_id-1],BU,strlen(BU)+1);
             }
             
         }
@@ -439,23 +293,23 @@ int main(int argc,char** argv){
 	
     printf("Server Address : %s at %d\n",serverAddressString,ntohs(server.sin_port));
     
-    char buff[100];
+    char BU[100];
     
     int i=0;
 	while(1){
         clientLen=sizeof(client);
 		clientsds[i]=accept(sd,(struct sockaddr *)&client,&clientLen);
-        read_line(clientsds[i],buff);
+        read_line(clientsds[i],BU);
         
-        bool is_it_there=false;
+        bool if_present=false;
         int j;
         for(j=0;j<100 && names[j]!=NULL;j++){
-            if(strcmp(buff,names[j])==0){
-                is_it_there=true;
+            if(strcmp(BU,names[j])==0){
+                if_present=true;
                 break;
             }
         }
-        if(is_it_there){
+        if(if_present){
             write(clientsds[i],"NOP\0",strlen("NOP\0")+1);
             close(clientsds[i]);
             continue;
@@ -466,7 +320,7 @@ int main(int argc,char** argv){
         
         names[i]=malloc(50*sizeof(char));
         
-        strcpy(names[i],buff);
+        strcpy(names[i],BU);
         printf("%s joined the server.\n",names[i]);
         
         void* arg_dump[2];
