@@ -264,7 +264,7 @@ void* start_client_exec(void* dump){
                     
                     group_id=0;
                     receiver_id=0;
-                    
+                 }   
                 else if(buff[2]=='l'){
                     if(receiver_id==0 || names[receiver_id-1][0]!= ':'){
                         write(other_clients[my_id-1],"-m Please select a group first.\0",strlen("-m Please select a group first.\0")+1);
