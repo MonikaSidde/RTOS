@@ -10,11 +10,13 @@
 #include<arpa/inet.h>
 #include<pthread.h>
 #include<signal.h>
+
 int sd;
 int clientsds[100];
 char** names;
 int** group_members;
 pthread_t client_threads[100];
+
 void sig_handler(int sig){
     if(sig==SIGINT){
         printf("\nServer stopping execution\n");
@@ -53,13 +55,11 @@ int read_line(int sfd,char* myLine){
     }
     return 0;
 }
+
 void* start_client_exec(void* dump){
     void** arg_dump=dump;
-    //char** names=((char**)(arg_dump[0]));
     int my_id=(int)(arg_dump[0]);
-    //int* other_clients=(int*)arg_dump[2];
     int *other_clients= clientsds;
-    //int** group_members=((int**)(arg_dump[3]));
     int* main_thread_i=arg_dump[1];
     
     int receiver_id=0;
@@ -79,7 +79,7 @@ void* start_client_exec(void* dump){
             
             return NULL;
         }
-        if(buff[0]=='-'){
+        if(buff[0]=='l'){
             
             write(other_clients[my_id-1],names[my_id-1],strlen(names[my_id-1]));
             write(other_clients[my_id-1],": ",2);
@@ -122,19 +122,13 @@ void* start_client_exec(void* dump){
                     write(other_clients[my_id-1],"\0",1);
                 }
             }
-            else if(buff[1]=='o'){
-                if(receiver_id==0){
-                    write(other_clients[my_id-1],"-m No one.\0",strlen("-m No one.\0")+1);
-                }
-                else if(names[receiver_id-1][0]!=':'){
-                    write(other_clients[my_id-1],"-m Talking to ",strlen("-m Talking to "));
-                    write(other_clients[my_id-1],names[receiver_id-1],strlen(names[receiver_id-1]));
-                }
-                else{
-                    write(other_clients[my_id-1],"-m Talking to group ",strlen("-m Talking to group "));
-                    write(other_clients[my_id-1],names[receiver_id-1]+1,strlen(names[receiver_id-1]+1));
-                }
-                write(other_clients[my_id-1],"\0",1);
+	    else if(buff[1]=='q'){
+                close(other_clients[my_id-1]);
+                other_clients[my_id-1]=0;
+                printf("%s left the server.\n",names[my_id-1]);
+                names[my_id-1][0]=0;
+                
+                return NULL;
             }
             else if(buff[1]=='l'){
                 write(other_clients[my_id-1],"-m Here is the list:",strlen("-m Here is the list:"));
@@ -147,14 +141,7 @@ void* start_client_exec(void* dump){
                 }
                 write(other_clients[my_id-1],"\0",1);
             }
-            else if(buff[1]=='q'){
-                close(other_clients[my_id-1]);
-                other_clients[my_id-1]=0;
-                printf("%s left the server.\n",names[my_id-1]);
-                names[my_id-1][0]=0;
-                
-                return NULL;
-            }
+            
             else if(buff[1]=='g'){
                 if(buff[2]=='n'){
                     bool is_it_there=false;
@@ -179,7 +166,6 @@ void* start_client_exec(void* dump){
                         strcpy(names[i]+1,buff+4);
                         receiver_id=i+1;
                         group_id=j+1;
-                        //printf("OK! %d\n",j);
                         
                         other_clients[receiver_id-1]=1;
                         (*main_thread_i)++;
@@ -190,8 +176,6 @@ void* start_client_exec(void* dump){
                         group_members[group_id-1]=(int*)malloc(100*sizeof(int));
                         group_members[group_id-1][0]=1;
                         group_members[group_id-1][1]=my_id;
-                        
-                        //printf("%d\n",group_members[group_id-1][1]);
                         
                     }
                     
@@ -214,7 +198,6 @@ void* start_client_exec(void* dump){
                         }
                         else{
                             bool is_it_group=false;
-                            //bool is_self_group=false;
                             int j;
                             for(j=1;j<=group_members[group_id-1][0];j++){
                                 if(group_members[group_id-1][j]==0)continue;
@@ -232,7 +215,6 @@ void* start_client_exec(void* dump){
                             else{
                                 group_members[group_id-1][0]+=1;
                                 group_members[group_id-1][j]=i+1;
-                                //printf("%d\n",group_members[group_id-1][j]);
                                 write(other_clients[my_id-1],"-m Added.\0",strlen("-m Added.\0")+1);
                                 printf("%s added %s to %s.\n",names[my_id-1],names[i],names[receiver_id-1]);
                                 write(other_clients[i],"-m ",strlen("-m "));
@@ -283,8 +265,6 @@ void* start_client_exec(void* dump){
                     group_id=0;
                     receiver_id=0;
                     
-                   
-                }
                 else if(buff[2]=='l'){
                     if(receiver_id==0 || names[receiver_id-1][0]!= ':'){
                         write(other_clients[my_id-1],"-m Please select a group first.\0",strlen("-m Please select a group first.\0")+1);
@@ -293,8 +273,6 @@ void* start_client_exec(void* dump){
                     write(other_clients[my_id-1],"-m Here are the members in the group:",strlen("-m Here are the members in the group:"));
                     int i;
                     for(i=1; i <= group_members[group_id-1][0] ; i++){
-                        //printf("OK %d\n",group_members[group_id-1][i]);
-                        //printf("OK\n");
                         if(group_members[group_id-1][i]==0)continue;
                         if(names[group_members[group_id-1][i]-1][0]!='\0'){
                             write(other_clients[my_id-1],"\n",1);
@@ -388,28 +366,7 @@ void* start_client_exec(void* dump){
                 }
                 
             }
-            else if(buff[1]=='c'){
-                bool is_it_there=false;
-                int i;
-                for(i=0;i<100 && names[i]!=NULL;i++){
-                    if(strcmp(buff+3,names[i])==0){
-                        is_it_there=true;
-                        break;
-                    }
-                }
-                if(!is_it_there){
-                    //printf("OK2\n");
-                    printf("%s changed to %s\n",names[my_id-1],buff+3);
-                    strcpy(names[my_id-1],buff+3);
-                    write(other_clients[my_id-1],"-m -c p\0",strlen("-m -c p\0")+1);
-                }
-                else{
-                    //printf("OK3\n");
-                    write(other_clients[my_id-1],"-m -c n ",strlen("-m -c n "));
-                    write(other_clients[my_id-1],names[my_id-1],strlen(names[my_id-1]));
-                    write(other_clients[my_id-1],"\0",1);
-                }
-            }
+            
         }
         else{
             
@@ -429,7 +386,6 @@ void* start_client_exec(void* dump){
             }
             else if(other_clients[receiver_id-1]==1){
                 int i;
-                //printf("OK %d\n",group_members[group_id-1])
                 for(i=1;i<=group_members[group_id-1][0];i++){
                     
                     if(group_members[group_id-1][i]==0)continue;
@@ -466,11 +422,8 @@ int main(int argc,char** argv){
     signal(SIGSEGV,sig_handler);
     
 	struct sockaddr_in server,client;
-    
     names=malloc(100*sizeof(char*));
-    
-    group_members=malloc(100*sizeof(int*));
-    
+    group_members=malloc(100*sizeof(int*)); 
     unsigned clientLen;
 	
 	sd=socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
@@ -492,9 +445,6 @@ int main(int argc,char** argv){
 	while(1){
         clientLen=sizeof(client);
 		clientsds[i]=accept(sd,(struct sockaddr *)&client,&clientLen);
-        
-    
-        
         read_line(clientsds[i],buff);
         
         bool is_it_there=false;
@@ -520,11 +470,9 @@ int main(int argc,char** argv){
         printf("%s joined the server.\n",names[i]);
         
         void* arg_dump[2];
-     
         arg_dump[0]=(void*)((long)(i+1));
         arg_dump[1]=&i;
         pthread_create(&client_threads[i],NULL,start_client_exec,arg_dump);
-        
         i++;
 	}
 	close(sd);
