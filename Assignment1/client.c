@@ -8,6 +8,7 @@
 #include<pthread.h>
 #include<string.h>
 #include<ncurses.h>
+
 int sd;
 int reader_pos_y,reader_pos_x;
 int writer_pos_y,writer_pos_x;
@@ -32,6 +33,7 @@ int read_line(int sfd,char* myLine){
     }
     return 0;
 }
+
 int myScanf(char* buff){
     int count=0;
     while(1){
@@ -78,6 +80,7 @@ int myScanf(char* buff){
     }
     return count;
 }
+
 int scroll_up_end(int a){
     scrl(a);
     reader_pos_y-=a;
@@ -92,77 +95,8 @@ int scroll_up_end(int a){
     return 0;
 }
 
-
-
-void* writer_func(void* dump){
-    /*void** arg_dump=dump;
-    int sd=*((int*)arg_dump[0]);
-    char* writer_quit_flag=arg_dump[1];
-    char* name=arg_dump[2];*/
-    
-    char buff[1000];
-    while(1){
-        if(reader_busy)continue;
-        mvprintw(LINES-1,0,"%s: ",name);
-        clrtoeol();
-        writer_pos_x=strlen(name)+2;
-        writer_pos_y=LINES-1;
-        
-        int temp_a=myScanf(buff);
-        clrtoeol();
-        buff[temp_a]='\0';
-        
-        if(temp_a==0)continue;
-        
-        if(buff[0]=='-'){
-            if(buff[1]=='q'){
-                writer_quit_flag=2;
-                break;
-            }
-            else if(buff[1]=='r'){
-                erase();
-                reader_pos_y=0;
-                reader_pos_x=0;
-            }
-            else if(buff[1]=='n'){
-                if(buff[2]!=0)scroll_up_end(buff[2]-48-1);
-                else scroll_up_end(2-1);
-            }
-            else if(buff[1]=='c'){
-                strcpy(name,buff+3);
-            }
-        }
-        
-        if(reader_pos_y==LINES-3)scroll_up_end(1);
-        
-        /*
-        move(reader_pos_y,reader_pos_x);
-        clrtoeol();
-        printw("%s: %s",name,buff);
-        reader_pos_x=0;
-        reader_pos_y++;
-         */
-        
-        int temp_b=write(sd,buff,strlen(buff)+1);
-        
-        if(temp_b<0){
-            writer_quit_flag=1;
-            break;
-        }
-    }
-    return NULL;
-}
-
 void* reader_func(void* dump){
-    /*void** arg_dump=dump;
-    int sd=*((int*)arg_dump[0]);
-    char* reader_quit_flag=arg_dump[1];
-    char* name=arg_dump[2];*/
-    
     char buff[1000];
-    
-    //reader_pos_x=0;reader_pos_y=1;
-    
     while(1){
         int server_working=read_line(sd,buff);
         
@@ -232,6 +166,50 @@ void* reader_func(void* dump){
     return NULL;
 }
 
+void* writer_func(void* dump){   
+    char buff[1000];
+    while(1){
+        if(reader_busy)continue;
+        mvprintw(LINES-1,0,"%s: ",name);
+        clrtoeol();
+        writer_pos_x=strlen(name)+2;
+        writer_pos_y=LINES-1;
+        
+        int temp_a=myScanf(buff);
+        clrtoeol();
+        buff[temp_a]='\0';
+        
+        if(temp_a==0)continue;
+        
+        if(buff[0]=='-'){
+            if(buff[1]=='q'){
+                writer_quit_flag=2;
+                break;
+            }
+            else if(buff[1]=='r'){
+                erase();
+                reader_pos_y=0;
+                reader_pos_x=0;
+            }
+            else if(buff[1]=='n'){
+                if(buff[2]!=0)scroll_up_end(buff[2]-48-1);
+                else scroll_up_end(2-1);
+            }
+            else if(buff[1]=='c'){
+                strcpy(name,buff+3);
+            }
+        }
+        
+        if(reader_pos_y==LINES-3)scroll_up_end(1);
+        int temp_b=write(sd,buff,strlen(buff)+1);
+        
+        if(temp_b<0){
+            writer_quit_flag=1;
+            break;
+        }
+    }
+    return NULL;
+}
 
 int main(int arc, char** argv){
     initscr();
@@ -260,7 +238,6 @@ int main(int arc, char** argv){
     name[temp_a]='\0';
     
     while(1){
-        //------
         if(connect(sd,(struct sockaddr *)&server,sizeof(server))<0){
             endwin();
             close(sd);
@@ -285,18 +262,13 @@ int main(int arc, char** argv){
             reader_pos_x=0;reader_pos_y=writer_pos_y+1;
             break;
         }
-        //------
     }
     
     pthread_t reader;
     pthread_t writer;
-    
-    
-    
-    //void* arg_dump_reader[3];arg_dump_reader[0]=&sd;arg_dump_reader[1]=&reader_quit_flag;arg_dump_reader[2]=name;
-    //void* arg_dump_writer[3];arg_dump_writer[0]=&sd;arg_dump_writer[1]=&writer_quit_flag;arg_dump_writer[2]=name;
-    pthread_create(&reader,NULL,reader_func,NULL);//arg_dump_reader);
-    pthread_create(&writer,NULL,writer_func,NULL);//arg_dump_writer);
+ 
+    pthread_create(&reader,NULL,reader_func,NULL);
+    pthread_create(&writer,NULL,writer_func,NULL);
     
     while(1){
         if(writer_quit_flag==1 || reader_quit_flag==1){
