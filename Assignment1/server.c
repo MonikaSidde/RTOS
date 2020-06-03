@@ -78,25 +78,40 @@ void* start_client_exec(void* dump){
             
             return NULL;
         }
-        if(BU[0]=='#'){
+        if(BU[0]=='x'){
             
             write(other_clients[my_id-1],names[my_id-1],strlen(names[my_id-1]));
             write(other_clients[my_id-1],": ",2);
             write(other_clients[my_id-1],BU,strlen(BU)+1);
             
-            
-            if(BU[1]=='l'){
-                write(other_clients[my_id-1],"-m List:",strlen("-m List:"));
+            if(BU[1]=='s'){
+                
+                bool if_present=false;
                 int i;
-                for(i=0; i<100 && names[i]!=NULL;i++){
-                    if(names[i][0]!='\0'){
-                        write(other_clients[my_id-1],"\n",1);
-                        write(other_clients[my_id-1],names[i],strlen(names[i]));
+                for(i=0;i<100 && names[i]!=NULL;i++){
+                    if(strcmp(BU+3,names[i])==0){
+                        if_present=true;
+                        break;
                     }
                 }
-                write(other_clients[my_id-1],"\0",1);
+                if(if_present){
+                    if(my_id==i+1){
+                        write(other_clients[my_id-1],"-m Sorry for your lonliness.\0",strlen("-m Sorry for your lonliness.\0")+1);
+                    }
+                    else{
+                        receiver_id=i+1;
+                        printf("%s is talking to %s.\n",names[my_id-1],names[receiver_id-1]);
+                    }
+                }
+                else{
+                    write(other_clients[my_id-1],"-m No such person found.",strlen("-m No such person found."));
+                    if(receiver_id!=0){
+                        write(other_clients[my_id-1]," Still connected to ",strlen(" Still connected to "));
+                        write(other_clients[my_id-1],names[receiver_id-1],strlen(names[receiver_id-1]));
+                    }
+                    write(other_clients[my_id-1],"\0",1);
+                }
             }
-            
             else if(BU[1]=='g'){
                 if(BU[2]=='n'){
                     bool if_present=false;
